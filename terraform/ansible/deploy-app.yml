@@ -1,0 +1,153 @@
+---
+- name: Deploy Laravel Application to Azure App Service
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    resource_group: "rg-stg_10"
+    app_service_name: "app-stg10-tf"
+    acr_name: "acrstg10tf"
+    image_name: "sample-app"
+    image_tag: "latest"
+    subscription_id: "6b9318b1-2215-418a-b0fd-ba0832e9b333"
+    mysql_host: "mysql-stg10-tf.mysql.database.azure.com"
+    db_name: "app_database"
+    db_username: "adminuser"
+    app_directory: "../"
+    
+  tasks:
+    - name: Get ACR credentials
+      azure.azcollection.azure_rm_containerregistry_info:
+        resource_group: "{{ resource_group }}"
+        name: "{{ acr_name }}"
+        retrieve_credentials: true
+      register: acr_info
+
+    - name: Set ACR password variable
+      set_fact:
+        acr_password: "{{ acr_info.registries[0].credentials.password }}"
+        acr_username: "{{ acr_info.registries[0].credentials.username }}"
+
+    - name: Get MySQL admin password from Terraform output
+      shell: terraform output -raw mysql_admin_password
+      args:
+        chdir: "../"
+      register: mysql_password_output
+
+    - name: Set MySQL password variable
+      set_fact:
+        mysql_password: "{{ mysql_password_output.stdout }}"
+
+    - name: Get Laravel APP_KEY from Terraform output
+      shell: terraform output -raw laravel_app_key
+      args:
+        chdir: "../"
+      register: app_key_output
+
+    - name: Set APP_KEY variable
+      set_fact:
+        app_key: "{{ app_key_output.stdout }}"
+
+    - name: Build Docker image
+      community.docker.docker_image:
+        build:
+          path: "{{ app_directory }}"
+          dockerfile: Dockerfile
+        name: "{{ acr_name }}.azurecr.io/{{ image_name }}"
+        tag: "{{ image_tag }}"
+        source: build
+        force_source: true
+
+    - name: Login to Azure Container Registry
+      community.docker.docker_login:
+        registry_url: "{{ acr_name }}.azurecr.io"
+        username: "{{ acr_username }}"
+        password: "{{ acr_password }}"
+
+    - name: Push Docker image to ACR
+      community.docker.docker_image:
+        name: "{{ acr_name }}.azurecr.io/{{ image_name }}"
+        tag: "{{ image_tag }}"
+        push: true
+        source: local
+
+    - name: Create App Service configuration JSON
+      copy:
+        content: |
+          {
+            "properties": {
+              "DOCKER_REGISTRY_SERVER_URL": "https://{{ acr_name }}.azurecr.io",
+              "DOCKER_REGISTRY_SERVER_USERNAME": "{{ acr_username }}",
+              "DOCKER_REGISTRY_SERVER_PASSWORD": "{{ acr_password }}",
+              "DB_CONNECTION": "mysql",
+              "DB_HOST": "{{ mysql_host }}",
+              "DB_DATABASE": "{{ db_name }}",
+              "DB_USERNAME": "{{ db_username }}",
+              "DB_PASSWORD": "{{ mysql_password }}",
+              "APP_ENV": "production",
+              "APP_DEBUG": "false",
+              "APP_KEY": "{{ app_key }}",
+              "MYSQL_ATTR_SSL_CA": "/opt/ssl/DigiCertGlobalRootCA.crt.pem",
+              "WEBSITES_ENABLE_APP_SERVICE_STORAGE": "false",
+              "WEBSITES_PORT": "80"
+            }
+          }
+        dest: "/tmp/app-service-config.json"
+
+    - name: Configure App Service environment variables via REST API
+      uri:
+        url: "https://management.azure.com/subscriptions/{{ subscription_id }}/resourceGroups/{{ resource_group }}/providers/Microsoft.Web/sites/{{ app_service_name }}/config/appsettings?api-version=2022-03-01"
+        method: PUT
+        body_format: json
+        body: "{{ lookup('file', '/tmp/app-service-config.json') | from_json }}"
+        headers:
+          Authorization: "Bearer {{ ansible_env.AZURE_ACCESS_TOKEN | default(lookup('pipe', 'az account get-access-token --query accessToken -o tsv')) }}"
+          Content-Type: "application/json"
+      register: config_result
+
+    - name: Configure App Service container settings
+      azure.azcollection.azure_rm_webapp:
+        resource_group: "{{ resource_group }}"
+        name: "{{ app_service_name }}"
+        container_settings:
+          name: "{{ acr_name }}.azurecr.io/{{ image_name }}:{{ image_tag }}"
+          registry_server_url: "https://{{ acr_name }}.azurecr.io"
+          registry_server_user: "{{ acr_username }}"
+          registry_server_password: "{{ acr_password }}"
+
+    - name: Restart App Service
+      azure.azcollection.azure_rm_webapp:
+        resource_group: "{{ resource_group }}"
+        name: "{{ app_service_name }}"
+        state: restarted
+
+    - name: Wait for App Service to be ready
+      pause:
+        seconds: 30
+
+    - name: Test application endpoint
+      uri:
+        url: "https://{{ app_service_name }}.azurewebsites.net"
+        method: GET
+        timeout: 30
+        status_code: [200, 500]
+      register: app_test
+      retries: 3
+      delay: 10
+
+    - name: Display application status
+      debug:
+        msg: |
+          Application deployment completed!
+          URL: https://{{ app_service_name }}.azurewebsites.net
+          Status: {{ app_test.status }}
+          {% if app_test.status == 200 %}
+          ✅ Application is working correctly!
+          {% else %}
+          ⚠️  Application returned status {{ app_test.status }} - check logs for details
+          {% endif %}
+
+    - name: Clean up temporary files
+      file:
+        path: "/tmp/app-service-config.json"
+        state: absent

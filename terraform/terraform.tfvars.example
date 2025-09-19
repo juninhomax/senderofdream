@@ -1,0 +1,47 @@
+# Fichier d'exemple des variables Terraform
+# Copiez ce fichier vers terraform.tfvars et adaptez les valeurs
+
+# Configuration générale
+project_name = "sampleappstg10max"
+environment  = "tf"  # Version terraformée pour test en parallèle
+location     = "France Central"
+
+# Azure Container Registry
+acr_sku = "Standard"
+
+# Configuration MySQL
+mysql_admin_username        = "adminuser"
+mysql_app_username         = "app_user"
+mysql_database_name        = "app_database"
+mysql_sku_name            = "B_Standard_B1ms"
+mysql_version             = "8.0.21"
+mysql_storage_gb          = 20
+mysql_backup_retention_days = 7
+
+# Configuration App Service
+app_service_sku      = "B1"
+app_service_always_on = true
+create_staging_slot   = false
+
+# Configuration Docker
+docker_image_name = "sample-app"
+docker_image_tag  = "latest"
+
+# Configuration Laravel
+laravel_app_env   = "production"
+laravel_app_debug = "false"
+# Générez une clé avec: php artisan key:generate --show
+laravel_app_key   = "base64:your-generated-app-key-here"
+
+# Sécurité réseau (optionnel)
+# allowed_ip_ranges = [
+#   {
+#     name             = "Office"
+#     start_ip_address = "203.0.113.0"
+#     end_ip_address   = "203.0.113.255"
+#   }
+# ]
+
+# Monitoring (optionnel)
+enable_application_insights = false
+log_retention_days         = 30

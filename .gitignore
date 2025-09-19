@@ -1,0 +1,32 @@
+/node_modules
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+.env
+.env.backup
+.phpunit.result.cache
+docker-compose.override.yml
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+/.idea
+/.vscode
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/*.tfvars
+terraform/app-config-*.json
+terraform/create-mysql-user.ps1
+
+# Logs et fichiers temporaires
+terraform/*logs/
+terraform/*logs.zip
+terraform/*.log
+terraform/mysql_setup.sql
+terraform/post-terraform-commands.md
+terraform/fix-*.json

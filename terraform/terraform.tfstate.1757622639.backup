@@ -1,0 +1,254 @@
+{
+  "version": 4,
+  "terraform_version": "1.13.0",
+  "serial": 13,
+  "lineage": "f89778e2-596c-2e8e-f360-a20902cebf74",
+  "outputs": {
+    "acr_name": {
+      "value": "acrsampleappstg10maxstaging",
+      "type": "string"
+    },
+    "app_service_name": {
+      "value": "app-sampleappstg10max-staging",
+      "type": "string"
+    },
+    "app_service_plan_name": {
+      "value": "plan-sampleappstg10max-staging",
+      "type": "string"
+    },
+    "mysql_admin_password": {
+      "value": "-MyIn4QY#PA\u003en3T8",
+      "type": "string",
+      "sensitive": true
+    },
+    "mysql_admin_username": {
+      "value": "adminuser",
+      "type": "string"
+    },
+    "mysql_app_password": {
+      "value": "}eiU33#%h%yv-Hnn",
+      "type": "string",
+      "sensitive": true
+    },
+    "mysql_app_username": {
+      "value": "app_user",
+      "type": "string"
+    },
+    "mysql_database_name": {
+      "value": "app_database",
+      "type": "string"
+    },
+    "mysql_server_name": {
+      "value": "mysql-sampleappstg10max-staging",
+      "type": "string"
+    },
+    "resource_group_location": {
+      "value": "westeurope",
+      "type": "string"
+    },
+    "resource_group_name": {
+      "value": "rg-sampleappstg10max-staging",
+      "type": "string"
+    }
+  },
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "random_password",
+      "name": "mysql_admin_password",
+      "provider": "provider[\"registry.terraform.io/hashicorp/random\"]",
+      "instances": [
+        {
+          "schema_version": 3,
+          "attributes": {
+            "bcrypt_hash": "$2a$10$WDU24Ky4cr4Fh9imZXyi6uv2XtoqGWAgIEoCdL.3ZFtFjOVtpvSO2",
+            "id": "none",
+            "keepers": null,
+            "length": 16,
+            "lower": true,
+            "min_lower": 0,
+            "min_numeric": 0,
+            "min_special": 0,
+            "min_upper": 0,
+            "number": true,
+            "numeric": true,
+            "override_special": null,
+            "result": "-MyIn4QY#PA\u003en3T8",
+            "special": true,
+            "upper": true
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "bcrypt_hash"
+              }
+            ],
+            [
+              {
+                "type": "get_attr",
+                "value": "result"
+              }
+            ]
+          ],
+          "identity_schema_version": 0
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "random_password",
+      "name": "mysql_app_password",
+      "provider": "provider[\"registry.terraform.io/hashicorp/random\"]",
+      "instances": [
+        {
+          "schema_version": 3,
+          "attributes": {
+            "bcrypt_hash": "$2a$10$XggpBwP0FLW1aYruejHxMOsI/B.1.crE9g7lEQNXBJkWVSzt5OIF2",
+            "id": "none",
+            "keepers": null,
+            "length": 16,
+            "lower": true,
+            "min_lower": 0,
+            "min_numeric": 0,
+            "min_special": 0,
+            "min_upper": 0,
+            "number": true,
+            "numeric": true,
+            "override_special": null,
+            "result": "}eiU33#%h%yv-Hnn",
+            "special": true,
+            "upper": true
+          },
+          "sensitive_attributes": [
+            [
+              {
+                "type": "get_attr",
+                "value": "bcrypt_hash"
+              }
+            ],
+            [
+              {
+                "type": "get_attr",
+                "value": "result"
+              }
+            ]
+          ],
+          "identity_schema_version": 0
+        }
+      ]
+    }
+  ],
+  "check_results": [
+    {
+      "object_kind": "var",
+      "config_addr": "var.mysql_backup_retention_days",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.mysql_backup_retention_days",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.mysql_sku_name",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.mysql_sku_name",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.project_name",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.project_name",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.laravel_app_env",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.laravel_app_env",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.laravel_app_debug",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.laravel_app_debug",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.log_retention_days",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.log_retention_days",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.environment",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.environment",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.acr_sku",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.acr_sku",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.app_service_sku",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.app_service_sku",
+          "status": "pass"
+        }
+      ]
+    },
+    {
+      "object_kind": "var",
+      "config_addr": "var.mysql_storage_gb",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "var.mysql_storage_gb",
+          "status": "pass"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+---
+- name: Configuration MySQL pour Laravel
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    mysql_server_name: "{{ mysql_server }}"
+    mysql_resource_group: "{{ resource_group }}"
+    mysql_admin_user: "{{ admin_user }}"
+    mysql_admin_password: "{{ admin_password }}"
+    mysql_app_user: "{{ app_user }}"
+    mysql_app_password: "{{ app_password }}"
+    mysql_database: "{{ database_name }}"
+    app_service_name: "{{ app_service }}"
+
+  tasks:
+    - name: Installer l'extension Azure CLI rdbms-connect
+      ansible.builtin.shell: |
+        az extension show --name rdbms-connect > /dev/null 2>&1 || az extension add --name rdbms-connect
+      register: extension_result
+      changed_when: "'already installed' not in extension_result.stderr"
+      failed_when: extension_result.rc != 0 and 'already installed' not in extension_result.stderr
+
+    - name: Créer l'utilisateur MySQL application
+      ansible.builtin.shell: |
+        az mysql flexible-server execute \
+          --name "{{ mysql_server_name }}" \
+          --resource-group "{{ mysql_resource_group }}" \
+          --admin-user "{{ mysql_admin_user }}" \
+          --admin-password "{{ mysql_admin_password }}" \
+          --database-name mysql \
+          --querytext "CREATE USER IF NOT EXISTS '{{ mysql_app_user }}'@'%' IDENTIFIED BY '{{ mysql_app_password }}';"
+      register: create_user_result
+      failed_when: 
+        - create_user_result.rc != 0
+        - "'already exists' not in create_user_result.stderr"
+      changed_when: create_user_result.rc == 0
+
+    - name: Accorder les privilèges à l'utilisateur application
+      ansible.builtin.shell: |
+        az mysql flexible-server execute \
+          --name "{{ mysql_server_name }}" \
+          --resource-group "{{ mysql_resource_group }}" \
+          --admin-user "{{ mysql_admin_user }}" \
+          --admin-password "{{ mysql_admin_password }}" \
+          --database-name mysql \
+          --querytext "GRANT ALL PRIVILEGES ON {{ mysql_database }}.* TO '{{ mysql_app_user }}'@'%';"
+      register: grant_result
+      failed_when: grant_result.rc != 0
+      changed_when: grant_result.rc == 0
+
+    - name: Flush des privilèges MySQL
+      ansible.builtin.shell: |
+        az mysql flexible-server execute \
+          --name "{{ mysql_server_name }}" \
+          --resource-group "{{ mysql_resource_group }}" \
+          --admin-user "{{ mysql_admin_user }}" \
+          --admin-password "{{ mysql_admin_password }}" \
+          --database-name mysql \
+          --querytext "FLUSH PRIVILEGES;"
+      register: flush_result
+      failed_when: flush_result.rc != 0
+      changed_when: flush_result.rc == 0
+
+    - name: Configurer le conteneur Docker de l'App Service
+      ansible.builtin.shell: |
+        az webapp config container set \
+          --name "{{ app_service_name }}" \
+          --resource-group "{{ mysql_resource_group }}" \
+          --container-image-name "acrstg10tf.azurecr.io/sample-app:latest" \
+          --container-registry-url "https://acrstg10tf.azurecr.io"
+      register: container_config_result
+      failed_when: container_config_result.rc != 0
+      changed_when: container_config_result.rc == 0
+
+    - name: Redémarrer l'App Service
+      ansible.builtin.shell: |
+        az webapp restart \
+          --name "{{ app_service_name }}" \
+          --resource-group "{{ mysql_resource_group }}"
+      register: restart_result
+      failed_when: restart_result.rc != 0
+      changed_when: restart_result.rc == 0
+
+    - name: Afficher les informations de déploiement
+      ansible.builtin.debug:
+        msg: |
+          === DÉPLOIEMENT TERMINÉ ===
+          URL de l'application: https://{{ app_service_name }}.azurewebsites.net
+          Serveur MySQL: {{ mysql_server_name }}.mysql.database.azure.com
+          Base de données: {{ mysql_database }}
+          Utilisateur app: {{ mysql_app_user }}
