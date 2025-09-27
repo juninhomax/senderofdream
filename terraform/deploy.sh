@@ -169,21 +169,21 @@ configure_application() {
         --name $(terraform output -raw mysql_server_name) \
         --admin-user adminuser \
         --admin-password $MYSQL_ADMIN_PASSWORD \
-        --database-name mysql \
+        --database-name app_database \
         --querytext "CREATE USER IF NOT EXISTS 'app_user'@'%' IDENTIFIED BY '$MYSQL_APP_PASSWORD';"
     
     az mysql flexible-server execute \
         --name $(terraform output -raw mysql_server_name) \
         --admin-user adminuser \
         --admin-password $MYSQL_ADMIN_PASSWORD \
-        --database-name mysql \
+        --database-name app_database \
         --querytext "GRANT ALL PRIVILEGES ON app_database.* TO 'app_user'@'%';"
     
     az mysql flexible-server execute \
         --name $(terraform output -raw mysql_server_name) \
         --admin-user adminuser \
         --admin-password $MYSQL_ADMIN_PASSWORD \
-        --database-name mysql \
+        --database-name app_database \
         --querytext "FLUSH PRIVILEGES;"
     
     # Create configuration JSON file
