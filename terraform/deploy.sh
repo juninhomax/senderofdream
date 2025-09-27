@@ -254,6 +254,11 @@ EOF
 deploy_all() {
     echo "🚀 Starting complete automated deployment..."
     deploy_infrastructure
+
+    # Wait for MySQL to be fully ready
+    echo "⏳ Waiting 60 seconds for MySQL to be fully operational..."
+    sleep 60
+
     configure_application
     echo ""
     echo "🎉 Complete deployment finished!"
