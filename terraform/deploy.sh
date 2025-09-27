@@ -256,8 +256,13 @@ deploy_all() {
     deploy_infrastructure
 
     # Wait for MySQL to be fully ready
-    echo "⏳ Waiting 60 seconds for MySQL to be fully operational..."
-    sleep 60
+    echo "⏳ Waiting 5 seconds for MySQL to be fully operational..."
+    sleep 5
+
+    configure_application
+    echo ""
+    echo "🎉 Complete deployment finished!"
+    echo "🌐 Your Laravel application is ready at: $(terraform output -raw app_service_url)"
 
     configure_application
     echo ""
