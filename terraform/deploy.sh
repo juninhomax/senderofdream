@@ -15,11 +15,12 @@ show_help() {
     echo ""
     echo "Commands:"
     echo "  (no args)         Deploy infrastructure only"
-    echo "  all, complete     Deploy infrastructure + application (fully automated)"
-    echo "  configure, app    Configure application only (requires existing infrastructure)"
-    echo "  destroy           Destroy all infrastructure"
-    echo "  plan              Show Terraform plan"
-    echo "  help              Show this help message"
+    echo "  infra              Deploy infrastructure only"
+    echo "  all, complete      Deploy infrastructure + application (fully automated)"
+    echo "  configure, app     Configure application only (requires existing infrastructure)"
+    echo "  destroy            Destroy all infrastructure"
+    echo "  plan               Show Terraform plan"
+    echo "  help               Show this help message"
     echo ""
     echo "Prerequisites:"
     echo "  - Azure CLI logged in (az login)"
@@ -263,6 +264,9 @@ deploy_all() {
 case "${1:-}" in
     "all"|"complete"|"auto")
         deploy_all
+        ;;
+    "infra"|"infrastructure")
+        deploy_infrastructure
         ;;
     "ansible"|"app"|"configure")
         configure_application
