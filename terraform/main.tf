@@ -237,31 +237,12 @@ resource "azurerm_linux_web_app" "main" {
   depends_on = [
     azurerm_container_registry.main,
     azurerm_mysql_flexible_server.main,
-    azurerm_mysql_flexible_database.app_database,
-    null_resource.docker_build_push
+    azurerm_mysql_flexible_database.app_database
   ]
 }
 
-# Construction et push de l'image Docker
-resource "null_resource" "docker_build_push" {
-  triggers = {
-    dockerfile_hash = filemd5("${local.project_path}/Dockerfile")
-    source_hash     = sha1(join("", [for f in fileset("${local.project_path}", "**/*.php") : filesha1("${local.project_path}/${f}")]))
-    acr_server      = azurerm_container_registry.main.login_server
-  }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      az acr login --name ${azurerm_container_registry.main.name}
-      docker build -t ${azurerm_container_registry.main.login_server}/${var.docker_image_name}:${var.docker_image_tag} ${local.project_path}
-      docker push ${azurerm_container_registry.main.login_server}/${var.docker_image_name}:${var.docker_image_tag}
-    EOT
-    
-    working_dir = local.project_path
-  }
-
-  depends_on = [azurerm_container_registry.main]
-}
+# Note: Docker build/push is now handled by GitHub Actions
+# The image must exist in ACR before deploying the App Service
 
 # Note: Utilisation de l'utilisateur admin MySQL directement pour Laravel
 # Cela évite les problèmes de création d'utilisateur supplémentaire
@@ -277,8 +258,7 @@ resource "null_resource" "app_service_config" {
   depends_on = [
     azurerm_mysql_flexible_server.main,
     azurerm_mysql_flexible_database.app_database,
-    azurerm_linux_web_app.main,
-    null_resource.docker_build_push
+    azurerm_linux_web_app.main
   ]
 }
 

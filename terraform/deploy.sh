@@ -250,24 +250,91 @@ EOF
     echo "3. Check logs if needed: az webapp log tail --name $APP_SERVICE_NAME --resource-group $RESOURCE_GROUP"
 }
 
-# Deploy everything automatically (infrastructure + application)
+# Deploy ACR first, trigger build, then deploy rest
 deploy_all() {
-    echo "🚀 Starting complete automated deployment..."
-    deploy_infrastructure
-
-    # Wait for MySQL to be fully ready
-    echo "⏳ Waiting 5 seconds for MySQL to be fully operational..."
-    sleep 5
-
+    echo "🚀 Starting phased deployment..."
+    
+    # Phase 1: Deploy ACR only
+    deploy_acr_first
+    
+    # Phase 2: Trigger GitHub Actions build
+    trigger_github_actions_build
+    
+    # Phase 3: Wait for image
+    wait_for_image_in_acr
+    
+    # Phase 4: Deploy rest of infrastructure
+    deploy_rest_of_infrastructure
+    
+    # Phase 5: Configure application
     configure_application
+    
     echo ""
-    echo "🎉 Complete deployment finished!"
+    echo "🎉 Complete phased deployment finished!"
     echo "🌐 Your Laravel application is ready at: $(terraform output -raw app_service_url)"
+}
 
-    configure_application
-    echo ""
-    echo "🎉 Complete deployment finished!"
-    echo "🌐 Your Laravel application is ready at: $(terraform output -raw app_service_url)"
+# Deploy only ACR
+deploy_acr_first() {
+    echo "🏗️ Phase 1: Deploying ACR first..."
+    check_auth
+    
+    terraform init
+    terraform apply -target=azurerm_container_registry.main -auto-approve
+    
+    echo "✅ ACR deployed successfully!"
+}
+
+# Trigger GitHub Actions workflow
+trigger_github_actions_build() {
+    echo "🚀 Phase 2: Triggering GitHub Actions build..."
+    
+    # Check if gh CLI is available
+    if command -v gh &> /dev/null; then
+        echo "Using GitHub CLI to trigger workflow..."
+        gh workflow run ci-cd.yml --ref $(git branch --show-current)
+    else
+        echo "GitHub CLI not found. Creating empty commit to trigger build..."
+        git commit --allow-empty -m "Trigger build for ACR deployment"
+        git push origin $(git branch --show-current)
+    fi
+    
+    echo "✅ Build triggered!"
+}
+
+# Wait for image to be available in ACR
+wait_for_image_in_acr() {
+    echo "⏳ Phase 3: Waiting for image to be available in ACR..."
+    
+    local acr_name=$(terraform output -raw acr_name)
+    local max_attempts=20
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        echo "Checking attempt $attempt/$max_attempts..."
+        
+        if az acr repository show --name $acr_name --repository sample-app > /dev/null 2>&1; then
+            echo "✅ Image found in ACR!"
+            return 0
+        fi
+        
+        echo "Image not ready yet, waiting 30 seconds..."
+        sleep 30
+        ((attempt++))
+    done
+    
+    echo "❌ Timeout waiting for image in ACR"
+    echo "Please check GitHub Actions workflow status"
+    exit 1
+}
+
+# Deploy rest of infrastructure
+deploy_rest_of_infrastructure() {
+    echo "🏗️ Phase 4: Deploying rest of infrastructure..."
+    
+    terraform apply -auto-approve
+    
+    echo "✅ Infrastructure deployment completed!"
 }
 
 # Main script logic

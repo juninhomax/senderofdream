@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - cicd-integration
+      - refactor-architecture
   pull_request:
     branches:
       - cicd-integration
+      - refactor-architecture
+  workflow_dispatch:  # Allow manual trigger from deploy.sh
 
 env:
   REGISTRY: acrstg10tf.azurecr.io
