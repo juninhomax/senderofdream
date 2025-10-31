@@ -208,3 +208,18 @@ variable "log_retention_days" {
     error_message = "La rétention des logs doit être entre 1 et 730 jours."
   }
 }
+
+# ACR Fixed Credentials
+variable "acr_admin_username" {
+  description = "Fixed admin username for Azure Container Registry"
+  type        = string
+  default     = "acrstg10tf"
+}
+
+variable "acr_admin_password" {
+  description = "Fixed admin password for Azure Container Registry"
+  type        = string
+  default     = "MyFixedACRPassword2024!"
+  sensitive   = true
+}
+

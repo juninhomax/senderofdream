@@ -1,6 +1,15 @@
 # Configuration Terraform pour l'infrastructure Laravel Azure
 terraform {
   required_version = ">= 1.0"
+  
+  # Backend Azure Storage pour partager l'état avec GitHub Actions
+  backend "azurerm" {
+    resource_group_name  = "rg-stg_10"
+    storage_account_name = "tfstatestg10"
+    container_name       = "tfstate"
+    key                  = "terraform.tfstate"
+  }
+  
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -98,7 +107,7 @@ resource "azurerm_container_registry" "main" {
   resource_group_name = local.resource_group_name
   location            = local.resource_group_location
   sku                 = var.acr_sku
-  admin_enabled       = true
+  admin_enabled       = false  # Disable admin user, use Service Principal instead
   
   tags = merge(local.common_tags, {
     Service = "ContainerRegistry"

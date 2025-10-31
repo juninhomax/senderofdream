@@ -279,25 +279,47 @@ deploy_acr_first() {
     echo "🏗️ Phase 1: Deploying ACR first..."
     check_auth
     
+    # Create storage account for Terraform backend if it doesn't exist
+    echo "🗄️ Setting up Terraform backend storage..."
+    if ! az storage account show --name tfstatestg10 --resource-group rg-stg_10 > /dev/null 2>&1; then
+        echo "Creating storage account for Terraform state..."
+        az storage account create \
+            --name tfstatestg10 \
+            --resource-group rg-stg_10 \
+            --location francecentral \
+            --sku Standard_LRS
+        
+        az storage container create \
+            --name tfstate \
+            --account-name tfstatestg10
+    fi
+    
     terraform init
     terraform apply -target=azurerm_container_registry.main -auto-approve
     
     echo "✅ ACR deployed successfully!"
+    echo "⏳ Waiting 2 minutes for ACR to be fully operational..."
+    sleep 180
+    
+    # Verify ACR is ready
+    local acr_name=$(terraform output -raw acr_name)
+    
+    # No need to update GitHub secrets anymore!
+    # GitHub Actions will read credentials directly from Terraform state
+    echo "✅ ACR credentials available in Terraform state"
+    echo "🔄 GitHub Actions will read them automatically from tfstate"
+    echo ""
 }
+
 
 # Trigger GitHub Actions workflow
 trigger_github_actions_build() {
     echo "🚀 Phase 2: Triggering GitHub Actions build..."
     
-    # Check if gh CLI is available
-    if command -v gh &> /dev/null; then
-        echo "Using GitHub CLI to trigger workflow..."
-        gh workflow run ci-cd.yml --ref $(git branch --show-current)
-    else
-        echo "GitHub CLI not found. Creating empty commit to trigger build..."
-        git commit --allow-empty -m "Trigger build for ACR deployment"
-        git push origin $(git branch --show-current)
-    fi
+    # Simple git push to trigger workflow
+    echo "Creating empty commit to trigger build..."
+    git commit --allow-empty -m "Trigger build for ACR deployment"
+    git push origin $(git branch --show-current)
     
     echo "✅ Build triggered!"
 }
