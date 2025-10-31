@@ -23,14 +23,14 @@ output "acr_login_server" {
 }
 
 output "acr_admin_username" {
-  description = "Nom d'utilisateur administrateur ACR (fixed)"
-  value       = var.acr_admin_username
+  description = "Nom d'utilisateur administrateur ACR (auto-generated)"
+  value       = azurerm_container_registry.main.admin_username
   sensitive   = true
 }
 
 output "acr_admin_password" {
-  description = "Mot de passe administrateur ACR (fixed)"
-  value       = var.acr_admin_password
+  description = "Mot de passe administrateur ACR (auto-generated)"
+  value       = azurerm_container_registry.main.admin_password
   sensitive   = true
 }
 

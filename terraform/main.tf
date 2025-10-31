@@ -107,7 +107,7 @@ resource "azurerm_container_registry" "main" {
   resource_group_name = local.resource_group_name
   location            = local.resource_group_location
   sku                 = var.acr_sku
-  admin_enabled       = false  # Disable admin user, use Service Principal instead
+  admin_enabled       = true   # Enable admin user for GitHub Actions
   
   tags = merge(local.common_tags, {
     Service = "ContainerRegistry"
