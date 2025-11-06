@@ -109,7 +109,7 @@ deploy_infrastructure() {
 configure_application() {
     echo "🔧 Starting application configuration..."
     check_auth
-    check_docker
+    # check_docker
     
     # Check if infrastructure exists
     if ! terraform output app_service_url > /dev/null 2>&1; then
@@ -138,22 +138,22 @@ configure_application() {
     # Verify ACR authentication
     check_acr_auth $ACR_NAME
     
-    # Build and push Docker image from the correct directory
-    echo "🐳 Building Docker image..."
-    cd ../
-    if ! docker build -t $ACR_LOGIN_SERVER/sample-app:latest .; then
-        echo "❌ Docker build failed!"
-        cd terraform/
-        exit 1
-    fi
+    # # Build and push Docker image from the correct directory
+    # echo "🐳 Building Docker image..."
+    # cd ../
+    # if ! docker build -t $ACR_LOGIN_SERVER/sample-app:latest .; then
+    #     echo "❌ Docker build failed!"
+    #     cd terraform/
+    #     exit 1
+    # fi
     
-    echo "📤 Pushing image to ACR..."
-    if ! docker push $ACR_LOGIN_SERVER/sample-app:latest; then
-        echo "❌ Docker push failed!"
-        cd terraform/
-        exit 1
-    fi
-    cd terraform/
+    # echo "📤 Pushing image to ACR..."
+    # if ! docker push $ACR_LOGIN_SERVER/sample-app:latest; then
+    #     echo "❌ Docker push failed!"
+    #     cd terraform/
+    #     exit 1
+    # fi
+    # cd terraform/
     
     # Verify image was pushed successfully
     echo "✅ Verifying image in ACR..."
