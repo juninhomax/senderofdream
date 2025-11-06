@@ -14,7 +14,7 @@ on:
   workflow_dispatch:  # Allow manual trigger from deploy.sh
 
 env:
-  REGISTRY: acrstg10tf.azurecr.io
+  REGISTRY: acrsampleappstg10maxprod.azurecr.io
   IMAGE_NAME: sample-app
 
 jobs:
@@ -33,8 +33,8 @@ jobs:
     - name: Get ACR credentials directly from Azure
       id: acr-creds
       run: |
-        ACR_USERNAME=$(az acr credential show --name acrstg10tf --query "username" -o tsv)
-        ACR_PASSWORD=$(az acr credential show --name acrstg10tf --query "passwords[0].value" -o tsv)
+        ACR_USERNAME=$(az acr credential show --name acrsampleappstg10maxprod --query "username" -o tsv)
+        ACR_PASSWORD=$(az acr credential show --name acrsampleappstg10maxprod --query "passwords[0].value" -o tsv)
         echo "::add-mask::$ACR_PASSWORD"
         echo "acr_username=$ACR_USERNAME" >> $GITHUB_OUTPUT
         echo "acr_password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
