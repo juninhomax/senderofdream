@@ -5,10 +5,12 @@ on:
     branches:
       - cicd-integration
       - refactor-architecture
+      - fix-cicd-auto-deploy
   pull_request:
     branches:
       - cicd-integration
       - refactor-architecture
+      - fix-cicd-auto-deploy
   workflow_dispatch:  # Allow manual trigger from deploy.sh
 
 env:
@@ -63,11 +65,20 @@ jobs:
         docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
         docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-    - name: Azure CLI Login
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-
     - name: Verify image pushed
       run: |
         az acr repository show --name acrstg10tf --repository ${{ env.IMAGE_NAME }} --output table
+
+    - name: Trigger App Service deployment
+      run: |
+        echo "🔄 Triggering App Service to pull new image..."
+        az webapp restart --name app-stg10-tf --resource-group rg-stg_10
+        
+        # Wait a moment for restart
+        sleep 30
+        
+        # Force container refresh by updating a dummy app setting
+        TIMESTAMP=$(date +%s)
+        az webapp config appsettings set --name app-stg10-tf --resource-group rg-stg_10 --settings "LAST_DEPLOY_TIME=$TIMESTAMP"
+        
+        echo "✅ App Service deployment triggered!"
