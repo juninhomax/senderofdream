@@ -56,14 +56,23 @@ jobs:
 
     - name: Trigger App Service deployment
       run: |
-        echo "🔄 Triggering App Service to pull new image..."
-        az webapp restart --name app-stg10-tf --resource-group rg-stg_10
+        echo "🔄 Checking if App Service exists..."
         
-        # Wait a moment for restart
-        sleep 15
-        
-        # Force container refresh by updating a dummy app setting
-        TIMESTAMP=$(date +%s)
-        az webapp config appsettings set --name app-stg10-tf --resource-group rg-stg_10 --settings "LAST_DEPLOY_TIME=$TIMESTAMP"
-        
-        echo "✅ App Service deployment triggered!"
+        # Check if App Service exists before trying to restart it
+        if az webapp show --name app-stg10-tf --resource-group rg-stg_10 > /dev/null 2>&1; then
+          echo "✅ App Service found - Triggering deployment..."
+          az webapp restart --name app-stg10-tf --resource-group rg-stg_10
+          
+          # Wait a moment for restart
+          sleep 15
+          
+          # Force container refresh by updating a dummy app setting
+          TIMESTAMP=$(date +%s)
+          az webapp config appsettings set --name app-stg10-tf --resource-group rg-stg_10 --settings "LAST_DEPLOY_TIME=$TIMESTAMP"
+          
+          echo "✅ App Service deployment triggered!"
+        else
+          echo "⚠️ App Service not found - Skipping deployment trigger"
+          echo "💡 This is normal if infrastructure hasn't been deployed yet"
+          echo "🚀 Image has been pushed to ACR and is ready for deployment"
+        fi
