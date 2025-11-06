@@ -2,7 +2,6 @@
 
 # Laravel Azure deployment script with full automation
 # Usage:
-#   ./deploy.sh                    - Deploy infrastructure only
 #   ./deploy.sh all               - Deploy infrastructure + application (fully automated)
 #   ./deploy.sh configure         - Configure application only (requires existing infrastructure)
 #   ./deploy.sh destroy           - Destroy all infrastructure
@@ -14,8 +13,6 @@ show_help() {
     echo "Usage: ./deploy.sh [COMMAND]"
     echo ""
     echo "Commands:"
-    echo "  (no args)         Deploy infrastructure only"
-    echo "  infra              Deploy infrastructure only"
     echo "  all, complete      Deploy infrastructure + application (fully automated)"
     echo "  configure, app     Configure application only (requires existing infrastructure)"
     echo "  destroy            Destroy all infrastructure"
@@ -24,8 +21,8 @@ show_help() {
     echo ""
     echo "Prerequisites:"
     echo "  - Azure CLI logged in (az login)"
-    echo "  - Docker Desktop running"
     echo "  - Terraform installed"
+    echo "  - GitHub repository configured"
     echo ""
 }
 
@@ -68,48 +65,10 @@ check_acr_auth() {
     echo "✅ ACR authentication successful."
 }
 
-# Check Docker is running
-check_docker() {
-    echo "🐳 Checking Docker status..."
-    if ! docker info > /dev/null 2>&1; then
-        echo "❌ Docker is not running. Please start Docker Desktop and try again."
-        exit 1
-    fi
-    echo "✅ Docker is running."
-}
-
-# Deploy infrastructure with Terraform
-deploy_infrastructure() {
-    echo "🚀 Starting infrastructure deployment..."
-    check_auth
-    
-    echo "📦 Deploying infrastructure with Terraform..."
-    terraform init
-    terraform plan
-    read -p "Continue with terraform apply? (y/N): " -n 1 -r
-    echo ""
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "❌ Deployment cancelled"
-        exit 0
-    fi
-    
-    terraform apply
-    
-    echo ""
-    echo "✅ Infrastructure deployment completed!"
-    echo ""
-    echo "📋 Next steps:"
-    echo "1. Verify resources are created in Azure portal"
-    echo "2. Run: ./deploy.sh ansible  (to configure the application)"
-    echo ""
-    echo "🌐 Application URL (once configured): $(terraform output -raw app_service_url)"
-}
-
 # Configure application automatically with all fixes applied
 configure_application() {
     echo "🔧 Starting application configuration..."
     check_auth
-    # check_docker
     
     # Check if infrastructure exists
     if ! terraform output app_service_url > /dev/null 2>&1; then
@@ -138,22 +97,6 @@ configure_application() {
     # Verify ACR authentication
     check_acr_auth $ACR_NAME
     
-    # # Build and push Docker image from the correct directory
-    # echo "🐳 Building Docker image..."
-    # cd ../
-    # if ! docker build -t $ACR_LOGIN_SERVER/sample-app:latest .; then
-    #     echo "❌ Docker build failed!"
-    #     cd terraform/
-    #     exit 1
-    # fi
-    
-    # echo "📤 Pushing image to ACR..."
-    # if ! docker push $ACR_LOGIN_SERVER/sample-app:latest; then
-    #     echo "❌ Docker push failed!"
-    #     cd terraform/
-    #     exit 1
-    # fi
-    # cd terraform/
     
     # Verify image was pushed successfully
     echo "✅ Verifying image in ACR..."
@@ -364,10 +307,7 @@ case "${1:-}" in
     "all"|"complete"|"auto")
         deploy_all
         ;;
-    "infra"|"infrastructure")
-        deploy_infrastructure
-        ;;
-    "ansible"|"app"|"configure")
+    "app"|"configure")
         configure_application
         ;;
     "destroy")
@@ -385,7 +325,7 @@ case "${1:-}" in
         show_help
         ;;
     *)
-        deploy_infrastructure
+        show_help
         ;;
 esac
 

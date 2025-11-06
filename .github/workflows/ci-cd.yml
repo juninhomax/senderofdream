@@ -1,14 +1,12 @@
-name: CI/CD Pipeline - Build & Push Docker Image
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
-      - cicd-integration
       - refactor-architecture
       - fix-cicd-auto-deploy
   pull_request:
     branches:
-      - cicd-integration
       - refactor-architecture
       - fix-cicd-auto-deploy
   workflow_dispatch:  # Allow manual trigger from deploy.sh
@@ -29,12 +27,6 @@ jobs:
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: 1.5.0
-        terraform_wrapper: false
 
     - name: Get ACR credentials directly from Azure
       id: acr-creds
@@ -60,22 +52,13 @@ jobs:
       run: |
         docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-    - name: Tag image with commit SHA
-      run: |
-        docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-        docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-
-    - name: Verify image pushed
-      run: |
-        az acr repository show --name acrstg10tf --repository ${{ env.IMAGE_NAME }} --output table
-
     - name: Trigger App Service deployment
       run: |
         echo "🔄 Triggering App Service to pull new image..."
         az webapp restart --name app-stg10-tf --resource-group rg-stg_10
         
         # Wait a moment for restart
-        sleep 30
+        sleep 15
         
         # Force container refresh by updating a dummy app setting
         TIMESTAMP=$(date +%s)
