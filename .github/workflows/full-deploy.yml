@@ -74,11 +74,31 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+    - name: Extract Azure credentials for Terraform
+      id: azure-creds
+      run: |
+        AZURE_CREDS='${{ secrets.AZURE_CREDENTIALS }}'
+        CLIENT_ID=$(echo $AZURE_CREDS | jq -r '.clientId')
+        CLIENT_SECRET=$(echo $AZURE_CREDS | jq -r '.clientSecret')
+        SUBSCRIPTION_ID=$(echo $AZURE_CREDS | jq -r '.subscriptionId')
+        TENANT_ID=$(echo $AZURE_CREDS | jq -r '.tenantId')
+        
+        echo "::add-mask::$CLIENT_SECRET"
+        echo "client_id=$CLIENT_ID" >> $GITHUB_OUTPUT
+        echo "client_secret=$CLIENT_SECRET" >> $GITHUB_OUTPUT
+        echo "subscription_id=$SUBSCRIPTION_ID" >> $GITHUB_OUTPUT
+        echo "tenant_id=$TENANT_ID" >> $GITHUB_OUTPUT
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: ${{ env.TERRAFORM_VERSION }}
         terraform_wrapper: false
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
 
     # Phase 1: Deploy ACR first
     - name: "Phase 1: Deploy ACR"
@@ -88,6 +108,11 @@ jobs:
         terraform init
         terraform apply -target=azurerm_container_registry.main -auto-approve
         echo "✅ ACR deployed successfully!"
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
 
     # Phase 2: Build and Push Docker Image
     - name: "Phase 2: Get ACR credentials"
@@ -100,6 +125,11 @@ jobs:
         echo "acr_name=$ACR_NAME" >> $GITHUB_OUTPUT
         echo "acr_username=$ACR_USERNAME" >> $GITHUB_OUTPUT
         echo "acr_password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
 
     - name: "Phase 2: Login to ACR"
       uses: docker/login-action@v3
@@ -122,6 +152,11 @@ jobs:
         cd terraform
         terraform apply -auto-approve
         echo "✅ Infrastructure deployment completed!"
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
 
     # Phase 4: Configure MySQL
     - name: "Phase 4: Configure MySQL"
@@ -158,6 +193,11 @@ jobs:
           --querytext "FLUSH PRIVILEGES;"
         
         echo "✅ MySQL configuration completed!"
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
 
     # Phase 5: Configure App Service
     - name: "Phase 5: Configure App Service"
@@ -210,6 +250,11 @@ jobs:
         az webapp restart --name $APP_SERVICE_NAME --resource-group ${{ env.RESOURCE_GROUP }}
         
         echo "✅ App Service configuration completed!"
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
 
     # Phase 6: Final verification
     - name: "Phase 6: Verify Deployment"
@@ -233,6 +278,11 @@ jobs:
         echo ""
         echo "🎉 Full deployment completed!"
         echo "🌐 Your Laravel application is ready at: $APP_URL"
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
 
   destroy-infrastructure:
     runs-on: ubuntu-latest
