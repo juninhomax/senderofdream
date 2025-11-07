@@ -23,7 +23,7 @@ env:
   REGISTRY: acrsampleappstg10maxprod.azurecr.io
   IMAGE_NAME: sample-app
   RESOURCE_GROUP: rg-stg_10
-  TERRAFORM_VERSION: 1.5.0
+  TERRAFORM_VERSION: 1.9.8
 
 jobs:
   terraform-plan:
@@ -105,7 +105,17 @@ jobs:
       run: |
         echo "🏗️ Phase 1: Deploying ACR first..."
         cd terraform
+        
+        # Initialize Terraform
         terraform init
+        
+        # Try to refresh state, if it fails, try to migrate
+        if ! terraform refresh; then
+          echo "⚠️ State refresh failed, attempting state migration..."
+          terraform init -migrate-state -force-copy || echo "State migration failed, continuing..."
+        fi
+        
+        # Deploy ACR
         terraform apply -target=azurerm_container_registry.main -auto-approve
         echo "✅ ACR deployed successfully!"
       env:
