@@ -49,7 +49,7 @@ git push origin prod-v1.0.0
 
 ### **🟢 Développement (dev)**
 ```
-Resource Group : rg-dev-stg10
+Resource Group : rg-stg_10 (partagé)
 ACR           : acrdevstg10.azurecr.io
 App Service   : app-dev-stg10.azurewebsites.net
 MySQL         : mysql-dev-stg10.mysql.database.azure.com
@@ -57,7 +57,7 @@ MySQL         : mysql-dev-stg10.mysql.database.azure.com
 
 ### **🟡 Staging**
 ```
-Resource Group : rg-staging-stg10
+Resource Group : rg-stg_10 (partagé)
 ACR           : acrstagingstg10.azurecr.io
 App Service   : app-staging-stg10.azurewebsites.net
 MySQL         : mysql-staging-stg10.mysql.database.azure.com
@@ -65,7 +65,7 @@ MySQL         : mysql-staging-stg10.mysql.database.azure.com
 
 ### **🔴 Production**
 ```
-Resource Group : rg-prod-stg10
+Resource Group : rg-stg_10 (partagé)
 ACR           : acrprodstg10.azurecr.io
 App Service   : app-prod-stg10.azurewebsites.net
 MySQL         : mysql-prod-stg10.mysql.database.azure.com

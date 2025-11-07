@@ -65,10 +65,9 @@ variable "azure_subscription_id" {
 variable "use_existing_resource_group" {
   description = "Utiliser un groupe de ressources existant"
   type        = bool
-  default     = true
+  default     = true  # Utiliser rg-stg_10 existant pour tous les environnements
 }
 
-# Variables Azure Container Registry
 variable "acr_sku" {
   description = "SKU de l'Azure Container Registry"
   type        = string

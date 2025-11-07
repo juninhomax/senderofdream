@@ -66,22 +66,22 @@ jobs:
         
         echo "🎯 Detected environment: $ENV"
         
-        # Configuration par environnement
+        # Configuration par environnement - même RG pour tous
         case $ENV in
           "dev")
-            RG="rg-dev-stg10"
+            RG="rg-stg_10"
             REGISTRY="acrdevstg10.azurecr.io"
             APP_NAME="app-dev-stg10"
             MYSQL_NAME="mysql-dev-stg10"
             ;;
           "staging")
-            RG="rg-staging-stg10"
+            RG="rg-stg_10"
             REGISTRY="acrstagingstg10.azurecr.io"
             APP_NAME="app-staging-stg10"
             MYSQL_NAME="mysql-staging-stg10"
             ;;
           "prod")
-            RG="rg-prod-stg10"
+            RG="rg-stg_10"
             REGISTRY="acrprodstg10.azurecr.io"
             APP_NAME="app-prod-stg10"
             MYSQL_NAME="mysql-prod-stg10"
