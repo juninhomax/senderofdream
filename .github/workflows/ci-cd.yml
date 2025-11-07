@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Legacy CI/CD Pipeline (Image Build Only)
 
 on:
   push:
@@ -6,11 +6,13 @@ on:
       - refactor-architecture
       - fix-cicd-auto-deploy
       - clean-final-version
+      # migrate-deploy-to-runner uses full-deploy.yml instead
   pull_request:
     branches:
       - refactor-architecture
       - fix-cicd-auto-deploy
       - clean-final-version
+      # migrate-deploy-to-runner uses full-deploy.yml instead
   workflow_dispatch:  # Allow manual trigger from deploy.sh
 
 env:

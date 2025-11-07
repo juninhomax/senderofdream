@@ -1,0 +1,262 @@
+name: Full Infrastructure & Application Deployment
+
+on:
+  push:
+    branches:
+      - migrate-deploy-to-runner
+  pull_request:
+    branches:
+      - migrate-deploy-to-runner
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+        - deploy
+        - destroy
+        - plan
+
+env:
+  REGISTRY: acrsampleappstg10maxprod.azurecr.io
+  IMAGE_NAME: sample-app
+  RESOURCE_GROUP: rg-stg_10
+  TERRAFORM_VERSION: 1.5.0
+
+jobs:
+  terraform-plan:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'plan' || github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Azure CLI Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+        terraform_wrapper: false
+
+    - name: Terraform Init
+      run: |
+        cd terraform
+        terraform init
+
+    - name: Terraform Plan
+      run: |
+        cd terraform
+        terraform plan -out=tfplan
+
+    - name: Upload Plan
+      uses: actions/upload-artifact@v3
+      with:
+        name: terraform-plan
+        path: terraform/tfplan
+
+  full-deployment:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'deploy' || (github.event_name == 'push' && github.ref == 'refs/heads/migrate-deploy-to-runner')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Azure CLI Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+        terraform_wrapper: false
+
+    # Phase 1: Deploy ACR first
+    - name: "Phase 1: Deploy ACR"
+      run: |
+        echo "🏗️ Phase 1: Deploying ACR first..."
+        cd terraform
+        terraform init
+        terraform apply -target=azurerm_container_registry.main -auto-approve
+        echo "✅ ACR deployed successfully!"
+
+    # Phase 2: Build and Push Docker Image
+    - name: "Phase 2: Get ACR credentials"
+      id: acr-creds
+      run: |
+        ACR_NAME=$(cd terraform && terraform output -raw acr_name)
+        ACR_USERNAME=$(az acr credential show --name $ACR_NAME --query "username" -o tsv)
+        ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv)
+        echo "::add-mask::$ACR_PASSWORD"
+        echo "acr_name=$ACR_NAME" >> $GITHUB_OUTPUT
+        echo "acr_username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+        echo "acr_password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+
+    - name: "Phase 2: Login to ACR"
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ steps.acr-creds.outputs.acr_name }}.azurecr.io
+        username: ${{ steps.acr-creds.outputs.acr_username }}
+        password: ${{ steps.acr-creds.outputs.acr_password }}
+
+    - name: "Phase 2: Build and Push Docker Image"
+      run: |
+        echo "🐳 Building and pushing Docker image..."
+        docker build -t ${{ steps.acr-creds.outputs.acr_name }}.azurecr.io/${{ env.IMAGE_NAME }}:latest .
+        docker push ${{ steps.acr-creds.outputs.acr_name }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+        echo "✅ Docker image pushed successfully!"
+
+    # Phase 3: Deploy remaining infrastructure
+    - name: "Phase 3: Deploy Infrastructure"
+      run: |
+        echo "🏗️ Phase 3: Deploying remaining infrastructure..."
+        cd terraform
+        terraform apply -auto-approve
+        echo "✅ Infrastructure deployment completed!"
+
+    # Phase 4: Configure MySQL
+    - name: "Phase 4: Configure MySQL"
+      run: |
+        echo "👤 Phase 4: Configuring MySQL..."
+        cd terraform
+        
+        # Get outputs
+        MYSQL_SERVER_NAME=$(terraform output -raw mysql_server_name)
+        MYSQL_ADMIN_PASSWORD=$(terraform output -raw mysql_admin_password)
+        MYSQL_APP_PASSWORD=$(terraform output -raw mysql_app_password)
+        
+        echo "Creating MySQL app user..."
+        az mysql flexible-server execute \
+          --name $MYSQL_SERVER_NAME \
+          --admin-user adminuser \
+          --admin-password $MYSQL_ADMIN_PASSWORD \
+          --database-name app_database \
+          --querytext "CREATE USER IF NOT EXISTS 'app_user'@'%' IDENTIFIED BY '$MYSQL_APP_PASSWORD';"
+        
+        echo "Granting privileges..."
+        az mysql flexible-server execute \
+          --name $MYSQL_SERVER_NAME \
+          --admin-user adminuser \
+          --admin-password $MYSQL_ADMIN_PASSWORD \
+          --database-name app_database \
+          --querytext "GRANT ALL PRIVILEGES ON app_database.* TO 'app_user'@'%';"
+        
+        az mysql flexible-server execute \
+          --name $MYSQL_SERVER_NAME \
+          --admin-user adminuser \
+          --admin-password $MYSQL_ADMIN_PASSWORD \
+          --database-name app_database \
+          --querytext "FLUSH PRIVILEGES;"
+        
+        echo "✅ MySQL configuration completed!"
+
+    # Phase 5: Configure App Service
+    - name: "Phase 5: Configure App Service"
+      run: |
+        echo "⚙️ Phase 5: Configuring App Service..."
+        cd terraform
+        
+        # Get all required outputs
+        APP_SERVICE_NAME=$(terraform output -raw app_service_name)
+        ACR_NAME=$(terraform output -raw acr_name)
+        ACR_LOGIN_SERVER=$(terraform output -raw acr_login_server)
+        MYSQL_HOST=$(terraform output -raw mysql_server_fqdn)
+        MYSQL_APP_PASSWORD=$(terraform output -raw mysql_app_password)
+        LARAVEL_APP_KEY=$(terraform output -raw laravel_app_key)
+        
+        # Get ACR credentials
+        ACR_USERNAME=$(az acr credential show --name $ACR_NAME --query "username" -o tsv)
+        ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv)
+        
+        echo "Configuring App Service environment variables..."
+        az webapp config appsettings set \
+          --name $APP_SERVICE_NAME \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --settings \
+            "DOCKER_REGISTRY_SERVER_URL=https://$ACR_LOGIN_SERVER" \
+            "DOCKER_REGISTRY_SERVER_USERNAME=$ACR_USERNAME" \
+            "DOCKER_REGISTRY_SERVER_PASSWORD=$ACR_PASSWORD" \
+            "DB_CONNECTION=mysql" \
+            "DB_HOST=$MYSQL_HOST" \
+            "DB_DATABASE=app_database" \
+            "DB_USERNAME=app_user" \
+            "DB_PASSWORD=$MYSQL_APP_PASSWORD" \
+            "APP_ENV=production" \
+            "APP_DEBUG=false" \
+            "APP_KEY=$LARAVEL_APP_KEY" \
+            "MYSQL_ATTR_SSL_CA=/opt/ssl/DigiCertGlobalRootCA.crt.pem" \
+            "WEBSITES_ENABLE_APP_SERVICE_STORAGE=false" \
+            "WEBSITES_PORT=80"
+        
+        echo "Configuring container settings..."
+        az webapp config container set \
+          --name $APP_SERVICE_NAME \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --docker-custom-image-name "$ACR_LOGIN_SERVER/${{ env.IMAGE_NAME }}:latest" \
+          --docker-registry-server-url "https://$ACR_LOGIN_SERVER" \
+          --docker-registry-server-user $ACR_USERNAME \
+          --docker-registry-server-password $ACR_PASSWORD
+        
+        echo "Restarting App Service..."
+        az webapp restart --name $APP_SERVICE_NAME --resource-group ${{ env.RESOURCE_GROUP }}
+        
+        echo "✅ App Service configuration completed!"
+
+    # Phase 6: Final verification
+    - name: "Phase 6: Verify Deployment"
+      run: |
+        echo "🔍 Phase 6: Verifying deployment..."
+        cd terraform
+        
+        APP_URL=$(terraform output -raw app_service_url)
+        
+        echo "🌐 Application URL: $APP_URL"
+        echo "⏳ Waiting for application to start..."
+        sleep 60
+        
+        # Test the application
+        if curl -f -s "$APP_URL" > /dev/null; then
+          echo "✅ Application is responding!"
+        else
+          echo "⚠️ Application might still be starting up"
+        fi
+        
+        echo ""
+        echo "🎉 Full deployment completed!"
+        echo "🌐 Your Laravel application is ready at: $APP_URL"
+
+  destroy-infrastructure:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'destroy'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Azure CLI Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TERRAFORM_VERSION }}
+        terraform_wrapper: false
+
+    - name: Terraform Destroy
+      run: |
+        echo "🗑️ Destroying infrastructure..."
+        cd terraform
+        terraform init
+        terraform destroy -auto-approve
+        echo "✅ Infrastructure destroyed successfully!"
