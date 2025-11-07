@@ -1,0 +1,477 @@
+name: Multi-Environment Deployment
+
+on:
+  push:
+    tags:
+      - 'dev-*'      # dev-v1.0.0, dev-v1.1.0
+      - 'staging-*'  # staging-v1.0.0, staging-v1.1.0  
+      - 'prod-*'     # prod-v1.0.0, prod-v1.1.0
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+        - deploy
+        - destroy
+        - plan
+
+env:
+  IMAGE_NAME: sample-app
+
+jobs:
+  detect-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env-detection.outputs.environment }}
+      resource_group: ${{ steps.env-detection.outputs.resource_group }}
+      registry: ${{ steps.env-detection.outputs.registry }}
+      app_name: ${{ steps.env-detection.outputs.app_name }}
+      mysql_name: ${{ steps.env-detection.outputs.mysql_name }}
+    
+    steps:
+    - name: Detect Environment from Tag or Input
+      id: env-detection
+      run: |
+        # Détection automatique par tag
+        if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/* ]]; then
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          if [[ $TAG_NAME == dev-* ]]; then
+            ENV="dev"
+          elif [[ $TAG_NAME == staging-* ]]; then
+            ENV="staging"
+          elif [[ $TAG_NAME == prod-* ]]; then
+            ENV="prod"
+          else
+            echo "❌ Tag format not recognized: $TAG_NAME"
+            exit 1
+          fi
+        # Ou sélection manuelle
+        elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          ENV="${{ github.event.inputs.environment }}"
+        else
+          echo "❌ No environment detected"
+          exit 1
+        fi
+        
+        echo "🎯 Detected environment: $ENV"
+        
+        # Configuration par environnement
+        case $ENV in
+          "dev")
+            RG="rg-dev-stg10"
+            REGISTRY="acrdevstg10.azurecr.io"
+            APP_NAME="app-dev-stg10"
+            MYSQL_NAME="mysql-dev-stg10"
+            ;;
+          "staging")
+            RG="rg-staging-stg10"
+            REGISTRY="acrstagingstg10.azurecr.io"
+            APP_NAME="app-staging-stg10"
+            MYSQL_NAME="mysql-staging-stg10"
+            ;;
+          "prod")
+            RG="rg-prod-stg10"
+            REGISTRY="acrprodstg10.azurecr.io"
+            APP_NAME="app-prod-stg10"
+            MYSQL_NAME="mysql-prod-stg10"
+            ;;
+        esac
+        
+        echo "environment=$ENV" >> $GITHUB_OUTPUT
+        echo "resource_group=$RG" >> $GITHUB_OUTPUT
+        echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
+        echo "app_name=$APP_NAME" >> $GITHUB_OUTPUT
+        echo "mysql_name=$MYSQL_NAME" >> $GITHUB_OUTPUT
+        
+        echo "📋 Configuration:"
+        echo "  Environment: $ENV"
+        echo "  Resource Group: $RG"
+        echo "  Registry: $REGISTRY"
+        echo "  App Name: $APP_NAME"
+        echo "  MySQL Name: $MYSQL_NAME"
+
+  terraform-plan:
+    runs-on: ubuntu-latest
+    needs: detect-environment
+    if: github.event.inputs.action == 'plan' || github.event_name == 'push'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Azure CLI Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Extract Azure credentials for Terraform
+      id: azure-creds
+      run: |
+        AZURE_CREDS='${{ secrets.AZURE_CREDENTIALS }}'
+        CLIENT_ID=$(echo $AZURE_CREDS | jq -r '.clientId')
+        CLIENT_SECRET=$(echo $AZURE_CREDS | jq -r '.clientSecret')
+        SUBSCRIPTION_ID=$(echo $AZURE_CREDS | jq -r '.subscriptionId')
+        TENANT_ID=$(echo $AZURE_CREDS | jq -r '.tenantId')
+        
+        echo "::add-mask::$CLIENT_SECRET"
+        echo "client_id=$CLIENT_ID" >> $GITHUB_OUTPUT
+        echo "client_secret=$CLIENT_SECRET" >> $GITHUB_OUTPUT
+        echo "subscription_id=$SUBSCRIPTION_ID" >> $GITHUB_OUTPUT
+        echo "tenant_id=$TENANT_ID" >> $GITHUB_OUTPUT
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.9.8
+        terraform_wrapper: false
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
+
+    - name: Terraform Plan
+      run: |
+        cd terraform
+        
+        # Initialiser avec workspace spécifique
+        terraform init
+        terraform workspace select ${{ needs.detect-environment.outputs.environment }} || terraform workspace new ${{ needs.detect-environment.outputs.environment }}
+        
+        # Plan avec variables d'environnement
+        terraform plan \
+          -var="environment=${{ needs.detect-environment.outputs.environment }}" \
+          -var="resource_group_name=${{ needs.detect-environment.outputs.resource_group }}" \
+          -var="acr_name=$(echo ${{ needs.detect-environment.outputs.registry }} | cut -d'.' -f1)" \
+          -var="app_service_name=${{ needs.detect-environment.outputs.app_name }}" \
+          -var="mysql_server_name=${{ needs.detect-environment.outputs.mysql_name }}" \
+          -out=tfplan-${{ needs.detect-environment.outputs.environment }}
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
+
+    - name: Upload Plan
+      uses: actions/upload-artifact@v3
+      with:
+        name: terraform-plan-${{ needs.detect-environment.outputs.environment }}
+        path: terraform/tfplan-${{ needs.detect-environment.outputs.environment }}
+
+  deploy-environment:
+    runs-on: ubuntu-latest
+    needs: detect-environment
+    if: github.event.inputs.action == 'deploy' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+    environment: ${{ needs.detect-environment.outputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Azure CLI Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Extract Azure credentials for Terraform
+      id: azure-creds
+      run: |
+        AZURE_CREDS='${{ secrets.AZURE_CREDENTIALS }}'
+        CLIENT_ID=$(echo $AZURE_CREDS | jq -r '.clientId')
+        CLIENT_SECRET=$(echo $AZURE_CREDS | jq -r '.clientSecret')
+        SUBSCRIPTION_ID=$(echo $AZURE_CREDS | jq -r '.subscriptionId')
+        TENANT_ID=$(echo $AZURE_CREDS | jq -r '.tenantId')
+        
+        echo "::add-mask::$CLIENT_SECRET"
+        echo "client_id=$CLIENT_ID" >> $GITHUB_OUTPUT
+        echo "client_secret=$CLIENT_SECRET" >> $GITHUB_OUTPUT
+        echo "subscription_id=$SUBSCRIPTION_ID" >> $GITHUB_OUTPUT
+        echo "tenant_id=$TENANT_ID" >> $GITHUB_OUTPUT
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.9.8
+        terraform_wrapper: false
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
+
+    # Phase 1: Deploy ACR first
+    - name: "Phase 1: Deploy ACR for ${{ needs.detect-environment.outputs.environment }}"
+      run: |
+        echo "🏗️ Phase 1: Deploying ACR for ${{ needs.detect-environment.outputs.environment }}..."
+        cd terraform
+        
+        # Initialize and select workspace
+        terraform init
+        terraform workspace select ${{ needs.detect-environment.outputs.environment }} || terraform workspace new ${{ needs.detect-environment.outputs.environment }}
+        
+        # Deploy ACR first
+        terraform apply \
+          -target=azurerm_container_registry.main \
+          -var="environment=${{ needs.detect-environment.outputs.environment }}" \
+          -var="resource_group_name=${{ needs.detect-environment.outputs.resource_group }}" \
+          -var="acr_name=$(echo ${{ needs.detect-environment.outputs.registry }} | cut -d'.' -f1)" \
+          -var="app_service_name=${{ needs.detect-environment.outputs.app_name }}" \
+          -var="mysql_server_name=${{ needs.detect-environment.outputs.mysql_name }}" \
+          -auto-approve
+        
+        echo "✅ ACR deployed successfully for ${{ needs.detect-environment.outputs.environment }}!"
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
+
+    # Phase 2: Build and Push Docker Image
+    - name: "Phase 2: Get ACR credentials for ${{ needs.detect-environment.outputs.environment }}"
+      id: acr-creds
+      run: |
+        ACR_NAME=$(echo ${{ needs.detect-environment.outputs.registry }} | cut -d'.' -f1)
+        ACR_USERNAME=$(az acr credential show --name $ACR_NAME --query "username" -o tsv)
+        ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv)
+        echo "::add-mask::$ACR_PASSWORD"
+        echo "acr_name=$ACR_NAME" >> $GITHUB_OUTPUT
+        echo "acr_username=$ACR_USERNAME" >> $GITHUB_OUTPUT
+        echo "acr_password=$ACR_PASSWORD" >> $GITHUB_OUTPUT
+
+    - name: "Phase 2: Login to ACR"
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ needs.detect-environment.outputs.registry }}
+        username: ${{ steps.acr-creds.outputs.acr_username }}
+        password: ${{ steps.acr-creds.outputs.acr_password }}
+
+    - name: "Phase 2: Build and Push Docker Image"
+      run: |
+        echo "🐳 Building and pushing Docker image for ${{ needs.detect-environment.outputs.environment }}..."
+        
+        # Tag avec l'environnement
+        TAG="${{ needs.detect-environment.outputs.environment }}-$(date +%Y%m%d-%H%M%S)"
+        
+        docker build -t ${{ needs.detect-environment.outputs.registry }}/${{ env.IMAGE_NAME }}:$TAG .
+        docker build -t ${{ needs.detect-environment.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ needs.detect-environment.outputs.environment }}-latest .
+        
+        docker push ${{ needs.detect-environment.outputs.registry }}/${{ env.IMAGE_NAME }}:$TAG
+        docker push ${{ needs.detect-environment.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ needs.detect-environment.outputs.environment }}-latest
+        
+        echo "✅ Docker image pushed successfully!"
+        echo "🏷️ Tags: $TAG, ${{ needs.detect-environment.outputs.environment }}-latest"
+
+    # Phase 3: Deploy remaining infrastructure
+    - name: "Phase 3: Deploy Infrastructure for ${{ needs.detect-environment.outputs.environment }}"
+      run: |
+        echo "🏗️ Phase 3: Deploying remaining infrastructure for ${{ needs.detect-environment.outputs.environment }}..."
+        cd terraform
+        
+        terraform apply \
+          -var="environment=${{ needs.detect-environment.outputs.environment }}" \
+          -var="resource_group_name=${{ needs.detect-environment.outputs.resource_group }}" \
+          -var="acr_name=$(echo ${{ needs.detect-environment.outputs.registry }} | cut -d'.' -f1)" \
+          -var="app_service_name=${{ needs.detect-environment.outputs.app_name }}" \
+          -var="mysql_server_name=${{ needs.detect-environment.outputs.mysql_name }}" \
+          -auto-approve
+        
+        echo "✅ Infrastructure deployment completed for ${{ needs.detect-environment.outputs.environment }}!"
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
+
+    # Phase 4: Configure MySQL
+    - name: "Phase 4: Configure MySQL for ${{ needs.detect-environment.outputs.environment }}"
+      run: |
+        echo "👤 Phase 4: Configuring MySQL for ${{ needs.detect-environment.outputs.environment }}..."
+        cd terraform
+        
+        # Get outputs
+        MYSQL_SERVER_NAME=$(terraform output -raw mysql_server_name)
+        MYSQL_ADMIN_PASSWORD=$(terraform output -raw mysql_admin_password)
+        MYSQL_APP_PASSWORD=$(terraform output -raw mysql_app_password)
+        
+        echo "Creating MySQL app user for ${{ needs.detect-environment.outputs.environment }}..."
+        az mysql flexible-server execute \
+          --name $MYSQL_SERVER_NAME \
+          --admin-user adminuser \
+          --admin-password $MYSQL_ADMIN_PASSWORD \
+          --database-name app_database \
+          --querytext "CREATE USER IF NOT EXISTS 'app_user'@'%' IDENTIFIED BY '$MYSQL_APP_PASSWORD';"
+        
+        echo "Granting privileges..."
+        az mysql flexible-server execute \
+          --name $MYSQL_SERVER_NAME \
+          --admin-user adminuser \
+          --admin-password $MYSQL_ADMIN_PASSWORD \
+          --database-name app_database \
+          --querytext "GRANT ALL PRIVILEGES ON app_database.* TO 'app_user'@'%';"
+        
+        az mysql flexible-server execute \
+          --name $MYSQL_SERVER_NAME \
+          --admin-user adminuser \
+          --admin-password $MYSQL_ADMIN_PASSWORD \
+          --database-name app_database \
+          --querytext "FLUSH PRIVILEGES;"
+        
+        echo "✅ MySQL configuration completed for ${{ needs.detect-environment.outputs.environment }}!"
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
+
+    # Phase 5: Configure App Service
+    - name: "Phase 5: Configure App Service for ${{ needs.detect-environment.outputs.environment }}"
+      run: |
+        echo "⚙️ Phase 5: Configuring App Service for ${{ needs.detect-environment.outputs.environment }}..."
+        cd terraform
+        
+        # Get all required outputs
+        APP_SERVICE_NAME=$(terraform output -raw app_service_name)
+        ACR_NAME=$(terraform output -raw acr_name)
+        ACR_LOGIN_SERVER=$(terraform output -raw acr_login_server)
+        ACR_USERNAME=$(terraform output -raw acr_username)
+        ACR_PASSWORD=$(terraform output -raw acr_password)
+        MYSQL_SERVER_NAME=$(terraform output -raw mysql_server_name)
+        MYSQL_APP_PASSWORD=$(terraform output -raw mysql_app_password)
+        
+        echo "Setting environment variables for ${{ needs.detect-environment.outputs.environment }}..."
+        az webapp config appsettings set \
+          --name $APP_SERVICE_NAME \
+          --resource-group ${{ needs.detect-environment.outputs.resource_group }} \
+          --settings \
+            DB_HOST="$MYSQL_SERVER_NAME.mysql.database.azure.com" \
+            DB_DATABASE="app_database" \
+            DB_USERNAME="app_user" \
+            DB_PASSWORD="$MYSQL_APP_PASSWORD" \
+            MYSQL_ATTR_SSL_CA="/opt/ssl/DigiCertGlobalRootCA.crt.pem" \
+            APP_ENV="${{ needs.detect-environment.outputs.environment }}" \
+            APP_DEBUG="false" \
+            APP_KEY="base64:$(openssl rand -base64 32)"
+        
+        echo "Configuring container settings for ${{ needs.detect-environment.outputs.environment }}..."
+        az webapp config container set \
+          --name $APP_SERVICE_NAME \
+          --resource-group ${{ needs.detect-environment.outputs.resource_group }} \
+          --docker-custom-image-name "$ACR_LOGIN_SERVER/${{ env.IMAGE_NAME }}:${{ needs.detect-environment.outputs.environment }}-latest" \
+          --docker-registry-server-url "https://$ACR_LOGIN_SERVER" \
+          --docker-registry-server-user $ACR_USERNAME \
+          --docker-registry-server-password $ACR_PASSWORD
+        
+        echo "Restarting App Service for ${{ needs.detect-environment.outputs.environment }}..."
+        az webapp restart --name $APP_SERVICE_NAME --resource-group ${{ needs.detect-environment.outputs.resource_group }}
+        
+        echo "✅ App Service configuration completed for ${{ needs.detect-environment.outputs.environment }}!"
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
+
+    # Phase 6: Final verification
+    - name: "Phase 6: Verify Deployment for ${{ needs.detect-environment.outputs.environment }}"
+      run: |
+        echo "🔍 Phase 6: Verifying deployment for ${{ needs.detect-environment.outputs.environment }}..."
+        cd terraform
+        
+        APP_URL=$(terraform output -raw app_service_url)
+        
+        echo "🌐 Application URL (${{ needs.detect-environment.outputs.environment }}): $APP_URL"
+        echo "⏳ Waiting for application to start..."
+        sleep 60
+        
+        # Test the application
+        if curl -f -s "$APP_URL" > /dev/null; then
+          echo "✅ Application is responding on ${{ needs.detect-environment.outputs.environment }}!"
+        else
+          echo "⚠️ Application might still be starting up on ${{ needs.detect-environment.outputs.environment }}"
+        fi
+        
+        echo ""
+        echo "🎉 Full deployment completed for ${{ needs.detect-environment.outputs.environment }}!"
+        echo "🌐 Your Laravel application (${{ needs.detect-environment.outputs.environment }}) is ready at: $APP_URL"
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
+
+  destroy-environment:
+    runs-on: ubuntu-latest
+    needs: detect-environment
+    if: github.event.inputs.action == 'destroy'
+    environment: ${{ needs.detect-environment.outputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Azure CLI Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Extract Azure credentials for Terraform
+      id: azure-creds
+      run: |
+        AZURE_CREDS='${{ secrets.AZURE_CREDENTIALS }}'
+        CLIENT_ID=$(echo $AZURE_CREDS | jq -r '.clientId')
+        CLIENT_SECRET=$(echo $AZURE_CREDS | jq -r '.clientSecret')
+        SUBSCRIPTION_ID=$(echo $AZURE_CREDS | jq -r '.subscriptionId')
+        TENANT_ID=$(echo $AZURE_CREDS | jq -r '.tenantId')
+        
+        echo "::add-mask::$CLIENT_SECRET"
+        echo "client_id=$CLIENT_ID" >> $GITHUB_OUTPUT
+        echo "client_secret=$CLIENT_SECRET" >> $GITHUB_OUTPUT
+        echo "subscription_id=$SUBSCRIPTION_ID" >> $GITHUB_OUTPUT
+        echo "tenant_id=$TENANT_ID" >> $GITHUB_OUTPUT
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.9.8
+        terraform_wrapper: false
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
+
+    - name: "Destroy Infrastructure for ${{ needs.detect-environment.outputs.environment }}"
+      run: |
+        echo "🗑️ Destroying infrastructure for ${{ needs.detect-environment.outputs.environment }}..."
+        cd terraform
+        
+        # Initialize and select workspace
+        terraform init
+        terraform workspace select ${{ needs.detect-environment.outputs.environment }}
+        
+        # Destroy with environment variables
+        terraform destroy \
+          -var="environment=${{ needs.detect-environment.outputs.environment }}" \
+          -var="resource_group_name=${{ needs.detect-environment.outputs.resource_group }}" \
+          -var="acr_name=$(echo ${{ needs.detect-environment.outputs.registry }} | cut -d'.' -f1)" \
+          -var="app_service_name=${{ needs.detect-environment.outputs.app_name }}" \
+          -var="mysql_server_name=${{ needs.detect-environment.outputs.mysql_name }}" \
+          -auto-approve
+        
+        echo "✅ Infrastructure destroyed for ${{ needs.detect-environment.outputs.environment }}!"
+      env:
+        ARM_CLIENT_ID: ${{ steps.azure-creds.outputs.client_id }}
+        ARM_CLIENT_SECRET: ${{ steps.azure-creds.outputs.client_secret }}
+        ARM_SUBSCRIPTION_ID: ${{ steps.azure-creds.outputs.subscription_id }}
+        ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}

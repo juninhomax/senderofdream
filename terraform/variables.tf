@@ -23,6 +23,31 @@ variable "environment" {
   }
 }
 
+# Variables spécifiques multi-environnement (passées par le workflow)
+variable "resource_group_name" {
+  description = "Nom du groupe de ressources (défini par l'environnement)"
+  type        = string
+  default     = "rg-stg_10"
+}
+
+variable "acr_name" {
+  description = "Nom de l'Azure Container Registry (défini par l'environnement)"
+  type        = string
+  default     = "acrsampleappstg10maxprod"
+}
+
+variable "app_service_name" {
+  description = "Nom de l'App Service (défini par l'environnement)"
+  type        = string
+  default     = "app-stg10-tf"
+}
+
+variable "mysql_server_name" {
+  description = "Nom du serveur MySQL (défini par l'environnement)"
+  type        = string
+  default     = "mysql-stg10-tf"
+}
+
 variable "location" {
   description = "Région Azure pour le déploiement"
   type        = string

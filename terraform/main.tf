@@ -46,11 +46,12 @@ locals {
     CreatedDate = formatdate("YYYY-MM-DD", timestamp())
   }
   
-  # Noms des ressources avec convention de nommage
-  mysql_server_name  = "mysql-${local.project_name}-${local.environment}"
-  app_service_name   = "app-${local.project_name}-${local.environment}"
-  app_service_plan_name = "plan-${local.project_name}-${local.environment}"
-  acr_name = "acr${replace(local.project_name, "-", "")}${local.environment}"
+  # Noms des ressources - utilise les variables passées par le workflow ou les defaults
+  target_resource_group_name = var.resource_group_name
+  target_acr_name           = var.acr_name
+  target_app_service_name   = var.app_service_name
+  target_mysql_server_name  = var.mysql_server_name
+  app_service_plan_name     = "plan-${local.project_name}-${local.environment}"
   
   # Chemin du projet pour les scripts
   project_path = "${path.root}/.."
@@ -59,12 +60,12 @@ locals {
 # Utilisation du groupe de ressources existant ou création si nécessaire
 data "azurerm_resource_group" "existing" {
   count = var.use_existing_resource_group ? 1 : 0
-  name  = "rg-stg_10"
+  name  = local.target_resource_group_name
 }
 
 resource "azurerm_resource_group" "main" {
   count    = var.use_existing_resource_group ? 0 : 1
-  name     = "rg-${var.project_name}-${var.environment}"
+  name     = local.target_resource_group_name
   location = var.location
   
   tags = local.common_tags
@@ -73,6 +74,11 @@ resource "azurerm_resource_group" "main" {
 locals {
   resource_group_name = var.use_existing_resource_group ? data.azurerm_resource_group.existing[0].name : azurerm_resource_group.main[0].name
   resource_group_location = var.use_existing_resource_group ? data.azurerm_resource_group.existing[0].location : azurerm_resource_group.main[0].location
+  
+  # Références finales pour les ressources (utilisées dans le reste du code)
+  acr_name = local.target_acr_name
+  mysql_server_name = local.target_mysql_server_name
+  app_service_name = local.target_app_service_name
 }
 
 # Génération des mots de passe MySQL (sans caractères spéciaux problématiques)
