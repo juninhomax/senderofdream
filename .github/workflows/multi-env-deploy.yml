@@ -164,7 +164,7 @@ jobs:
         ARM_TENANT_ID: ${{ steps.azure-creds.outputs.tenant_id }}
 
     - name: Upload Plan
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: terraform-plan-${{ needs.detect-environment.outputs.environment }}
         path: terraform/tfplan-${{ needs.detect-environment.outputs.environment }}
