@@ -6,7 +6,7 @@
         crossorigin="anonymous"></script>
     </head>
     <body>
-        <h1>🚀 DEV Environment - Multi-Env Deploy Test v1.1.1 🌍</h1>
+        <h1>🚀 DEV Environment - Multi-Env Deploy Test v1.1.2 🌍</h1>
         <p>Counter :<p id="value">{{ $value }}</p></p>
         <button id="add">+1</button>
 
