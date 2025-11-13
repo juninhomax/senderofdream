@@ -372,8 +372,9 @@ jobs:
           --docker-registry-server-user $ACR_USERNAME \
           --docker-registry-server-password $ACR_PASSWORD
         
-        echo "Restarting App Service for ${{ needs.detect-environment.outputs.environment }}..."
-        az webapp restart --name $APP_SERVICE_NAME --resource-group ${{ needs.detect-environment.outputs.resource_group }}
+        echo "⏳ Waiting for App Service to detect new image (continuous deployment)..."
+        echo "ℹ️  App Service will automatically pull the updated '${{ needs.detect-environment.outputs.environment }}-latest' image"
+        echo "ℹ️  This should happen within 1-2 minutes without downtime"
         
         echo "✅ App Service configuration completed for ${{ needs.detect-environment.outputs.environment }}!"
       env:
