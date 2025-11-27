@@ -6,7 +6,7 @@
         crossorigin="anonymous"></script>
     </head>
     <body>
-        <h1>🎉 EPITECH T-CLO-901 - Zero Downtime Deployment SUCCESS! v1.1 🚀</h1>
+        <h1>Hello World</h1>
         <p>Counter :<p id="value">{{ $value }}</p></p>
         <button id="add">+1</button>
 
