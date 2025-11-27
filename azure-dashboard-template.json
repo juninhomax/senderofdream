@@ -1,0 +1,403 @@
+{
+  "properties": {
+    "lenses": {
+      "0": {
+        "order": 0,
+        "parts": {
+          "0": {
+            "position": {
+              "x": 0,
+              "y": 0,
+              "colSpan": 6,
+              "rowSpan": 4
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "options",
+                  "value": {
+                    "chart": {
+                      "metrics": [
+                        {
+                          "resourceMetadata": {
+                            "id": "/subscriptions/6b9318b1-2215-418a-b0fd-ba0832e9b333/resourceGroups/rg-stg_10/providers/Microsoft.Web/sites/app-dev-stg10"
+                          },
+                          "name": "Requests",
+                          "aggregationType": "Total",
+                          "namespace": "Microsoft.Web/sites",
+                          "metricVisualization": {
+                            "displayName": "Requests"
+                          }
+                        },
+                        {
+                          "resourceMetadata": {
+                            "id": "/subscriptions/6b9318b1-2215-418a-b0fd-ba0832e9b333/resourceGroups/rg-stg_10/providers/Microsoft.Web/sites/app-dev-stg10"
+                          },
+                          "name": "AverageResponseTime",
+                          "aggregationType": "Average",
+                          "namespace": "Microsoft.Web/sites",
+                          "metricVisualization": {
+                            "displayName": "Average Response Time"
+                          }
+                        }
+                      ],
+                      "title": "🌐 Web App - Requests & Response Time",
+                      "titleKind": "Auto",
+                      "visualization": {
+                        "chartType": "Line"
+                      },
+                      "timespan": {
+                        "relative": {
+                          "duration": 14400000
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart"
+            }
+          },
+          "1": {
+            "position": {
+              "x": 6,
+              "y": 0,
+              "colSpan": 6,
+              "rowSpan": 4
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "options",
+                  "value": {
+                    "chart": {
+                      "metrics": [
+                        {
+                          "resourceMetadata": {
+                            "id": "/subscriptions/6b9318b1-2215-418a-b0fd-ba0832e9b333/resourceGroups/rg-stg_10/providers/Microsoft.Web/sites/app-dev-stg10"
+                          },
+                          "name": "CpuPercentage",
+                          "aggregationType": "Average",
+                          "namespace": "Microsoft.Web/sites",
+                          "metricVisualization": {
+                            "displayName": "CPU Percentage"
+                          }
+                        },
+                        {
+                          "resourceMetadata": {
+                            "id": "/subscriptions/6b9318b1-2215-418a-b0fd-ba0832e9b333/resourceGroups/rg-stg_10/providers/Microsoft.Web/sites/app-dev-stg10"
+                          },
+                          "name": "MemoryPercentage",
+                          "aggregationType": "Average",
+                          "namespace": "Microsoft.Web/sites",
+                          "metricVisualization": {
+                            "displayName": "Memory Percentage"
+                          }
+                        }
+                      ],
+                      "title": "💻 Web App - CPU & Memory Usage",
+                      "titleKind": "Auto",
+                      "visualization": {
+                        "chartType": "Area"
+                      },
+                      "timespan": {
+                        "relative": {
+                          "duration": 14400000
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart"
+            }
+          },
+          "2": {
+            "position": {
+              "x": 0,
+              "y": 4,
+              "colSpan": 6,
+              "rowSpan": 4
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "options",
+                  "value": {
+                    "chart": {
+                      "metrics": [
+                        {
+                          "resourceMetadata": {
+                            "id": "/subscriptions/6b9318b1-2215-418a-b0fd-ba0832e9b333/resourceGroups/rg-stg_10/providers/Microsoft.DBforMySQL/flexibleServers/mysql-dev-stg10"
+                          },
+                          "name": "cpu_percent",
+                          "aggregationType": "Average",
+                          "namespace": "Microsoft.DBforMySQL/flexibleServers",
+                          "metricVisualization": {
+                            "displayName": "CPU Percent"
+                          }
+                        },
+                        {
+                          "resourceMetadata": {
+                            "id": "/subscriptions/6b9318b1-2215-418a-b0fd-ba0832e9b333/resourceGroups/rg-stg_10/providers/Microsoft.DBforMySQL/flexibleServers/mysql-dev-stg10"
+                          },
+                          "name": "memory_percent",
+                          "aggregationType": "Average",
+                          "namespace": "Microsoft.DBforMySQL/flexibleServers",
+                          "metricVisualization": {
+                            "displayName": "Memory Percent"
+                          }
+                        }
+                      ],
+                      "title": "🗄️ MySQL - CPU & Memory Usage",
+                      "titleKind": "Auto",
+                      "visualization": {
+                        "chartType": "Line"
+                      },
+                      "timespan": {
+                        "relative": {
+                          "duration": 14400000
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart"
+            }
+          },
+          "3": {
+            "position": {
+              "x": 6,
+              "y": 4,
+              "colSpan": 6,
+              "rowSpan": 4
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "options",
+                  "value": {
+                    "chart": {
+                      "metrics": [
+                        {
+                          "resourceMetadata": {
+                            "id": "/subscriptions/6b9318b1-2215-418a-b0fd-ba0832e9b333/resourceGroups/rg-stg_10/providers/Microsoft.DBforMySQL/flexibleServers/mysql-dev-stg10"
+                          },
+                          "name": "active_connections",
+                          "aggregationType": "Average",
+                          "namespace": "Microsoft.DBforMySQL/flexibleServers",
+                          "metricVisualization": {
+                            "displayName": "Active Connections"
+                          }
+                        },
+                        {
+                          "resourceMetadata": {
+                            "id": "/subscriptions/6b9318b1-2215-418a-b0fd-ba0832e9b333/resourceGroups/rg-stg_10/providers/Microsoft.DBforMySQL/flexibleServers/mysql-dev-stg10"
+                          },
+                          "name": "total_connections",
+                          "aggregationType": "Total",
+                          "namespace": "Microsoft.DBforMySQL/flexibleServers",
+                          "metricVisualization": {
+                            "displayName": "Total Connections"
+                          }
+                        }
+                      ],
+                      "title": "🔗 MySQL - Database Connections",
+                      "titleKind": "Auto",
+                      "visualization": {
+                        "chartType": "Area"
+                      },
+                      "timespan": {
+                        "relative": {
+                          "duration": 14400000
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart"
+            }
+          },
+          "4": {
+            "position": {
+              "x": 0,
+              "y": 8,
+              "colSpan": 4,
+              "rowSpan": 3
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "options",
+                  "value": {
+                    "chart": {
+                      "metrics": [
+                        {
+                          "resourceMetadata": {
+                            "id": "/subscriptions/6b9318b1-2215-418a-b0fd-ba0832e9b333/resourceGroups/rg-stg_10/providers/Microsoft.Web/sites/app-dev-stg10"
+                          },
+                          "name": "Http2xx",
+                          "aggregationType": "Total",
+                          "namespace": "Microsoft.Web/sites",
+                          "metricVisualization": {
+                            "displayName": "Http 2xx"
+                          }
+                        }
+                      ],
+                      "title": "✅ HTTP Success (2xx)",
+                      "titleKind": "Auto",
+                      "visualization": {
+                        "chartType": "Bar"
+                      },
+                      "timespan": {
+                        "relative": {
+                          "duration": 14400000
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart"
+            }
+          },
+          "5": {
+            "position": {
+              "x": 4,
+              "y": 8,
+              "colSpan": 4,
+              "rowSpan": 3
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "options",
+                  "value": {
+                    "chart": {
+                      "metrics": [
+                        {
+                          "resourceMetadata": {
+                            "id": "/subscriptions/6b9318b1-2215-418a-b0fd-ba0832e9b333/resourceGroups/rg-stg_10/providers/Microsoft.Web/sites/app-dev-stg10"
+                          },
+                          "name": "Http5xx",
+                          "aggregationType": "Total",
+                          "namespace": "Microsoft.Web/sites",
+                          "metricVisualization": {
+                            "displayName": "Http 5xx"
+                          }
+                        }
+                      ],
+                      "title": "❌ HTTP Errors (5xx)",
+                      "titleKind": "Auto",
+                      "visualization": {
+                        "chartType": "Bar"
+                      },
+                      "timespan": {
+                        "relative": {
+                          "duration": 14400000
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart"
+            }
+          },
+          "6": {
+            "position": {
+              "x": 8,
+              "y": 8,
+              "colSpan": 4,
+              "rowSpan": 3
+            },
+            "metadata": {
+              "inputs": [
+                {
+                  "name": "options",
+                  "value": {
+                    "chart": {
+                      "metrics": [
+                        {
+                          "resourceMetadata": {
+                            "id": "/subscriptions/6b9318b1-2215-418a-b0fd-ba0832e9b333/resourceGroups/rg-stg_10/providers/Microsoft.DBforMySQL/flexibleServers/mysql-dev-stg10"
+                          },
+                          "name": "io_percent",
+                          "aggregationType": "Average",
+                          "namespace": "Microsoft.DBforMySQL/flexibleServers",
+                          "metricVisualization": {
+                            "displayName": "IO Percent"
+                          }
+                        }
+                      ],
+                      "title": "💾 MySQL - IO Usage",
+                      "titleKind": "Auto",
+                      "visualization": {
+                        "chartType": "Line"
+                      },
+                      "timespan": {
+                        "relative": {
+                          "duration": 14400000
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "type": "Extension/HubsExtension/PartType/MonitorChartPart"
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "model": {
+        "timeRange": {
+          "value": {
+            "relative": {
+              "duration": 14400000
+            }
+          },
+          "type": "MsPortalFx.Composition.Configuration.ValueTypes.TimeRange"
+        },
+        "filterLocale": {
+          "value": "en-us"
+        },
+        "filters": {
+          "value": {
+            "MsPortalFx_TimeRange": {
+              "model": {
+                "format": "local",
+                "granularity": "auto",
+                "relative": "4h"
+              },
+              "displayCache": {
+                "name": "Local Time",
+                "value": "Past 4 hours"
+              },
+              "filteredPartIds": [
+                "StartboardPart-MonitorChartPart-0",
+                "StartboardPart-MonitorChartPart-1",
+                "StartboardPart-MonitorChartPart-2",
+                "StartboardPart-MonitorChartPart-3",
+                "StartboardPart-MonitorChartPart-4",
+                "StartboardPart-MonitorChartPart-5",
+                "StartboardPart-MonitorChartPart-6"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "name": "T-CLO-901 Monitoring Dashboard",
+  "type": "Microsoft.Portal/dashboards",
+  "location": "INSERT LOCATION",
+  "tags": {
+    "hidden-title": "T-CLO-901 Monitoring Dashboard",
+    "project": "T-CLO-901",
+    "environment": "dev"
+  }
+}
